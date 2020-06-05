@@ -21,12 +21,12 @@ control_vma_vm_pfnmap() {
 		"after_access")
 			$PAGETYPES -p $pid -Nrl -a 0x700000000+0x100
 			read_pagemap $pid 0x700000000 1 > $TMPD/case1
-			read_pagemap $pid 0x700000001 1 > $TMPD/case2
-			read_pagemap $pid 0x700000002 1 > $TMPD/case3
+			read_pagemap $pid 0x700000010 1 > $TMPD/case2
+			read_pagemap $pid 0x700000020 1 > $TMPD/case3
 			read_pagemap $pid 0x700000000 2 > $TMPD/case4
-			read_pagemap $pid 0x700000001 2 > $TMPD/case5
-			read_pagemap $pid 0x700000002 2 > $TMPD/case6
-			read_pagemap $pid 0x700000003 2 > $TMPD/case7
+			read_pagemap $pid 0x700000010 2 > $TMPD/case5
+			read_pagemap $pid 0x700000020 2 > $TMPD/case6
+			read_pagemap $pid 0x700000030 2 > $TMPD/case7
 			read_pagemap $pid 0x6ffffffff 8 > $TMPD/case8
 			cat /proc/$pid/smaps > $TMPD/smaps
 			cat /proc/$pid/maps > $TMPD/maps
@@ -105,7 +105,7 @@ check_pagemap() {
 
 check_smaps() {
 	count_testcount
-	if grep ^700000001000 $TMPD/smaps > /dev/null ; then
+	if grep ^700000010000 $TMPD/smaps > /dev/null ; then
 		count_success "smaps contains VM_PFNMAP area"
 	else
 		count_failure "smaps doesn't contain VM_PFNMAP area"
@@ -114,7 +114,7 @@ check_smaps() {
 
 check_maps() {
 	count_testcount
-	if grep ^700000001000 $TMPD/maps > /dev/null ; then
+	if grep ^700000010000 $TMPD/maps > /dev/null ; then
 		count_success "maps contains VM_PFNMAP area"
 	else
 		count_failure "maps doesn't contain VM_PFNMAP area"
@@ -123,7 +123,7 @@ check_maps() {
 
 check_numa_maps() {
 	count_testcount
-	if grep ^700000001000 $TMPD/numa_maps > /dev/null ; then
+	if grep ^700000010000 $TMPD/numa_maps > /dev/null ; then
 		count_success "numa_maps contains VM_PFNMAP area"
 	else
 		count_failure "numa_maps doesn't contain VM_PFNMAP area"
@@ -138,7 +138,7 @@ if [ "$FLAVOR" == simple ] ; then
 elif [ "$FLAVOR" == process ] ; then
 	_control() {
 		echo_log "Walk through processes with vma(VM_PFNMAP) and check pagemap/maps/smaps/numa_maps" | tee -a $OFILE
-		TMPD=$TMPD PAGETYPES=$PAGETYPES bash $TRDIR/find_vma_vm_pfnmap.sh
+		TMPD=$TMPD PAGETYPES=$PAGETYPES bash $TRDIR/lib/find_vma_vm_pfnmap.sh
 		echo_log "done"
 		set_return_code EXIT
 	}

@@ -6,7 +6,7 @@
 
 #define ADDR_INPUT	0x700000000000UL
 #define HPS		0x200000
-#define PS		0x1000
+#define PS		0x10000
 
 int main(int argc, char *argv[]) {
 	int i;

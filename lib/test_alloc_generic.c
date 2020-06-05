@@ -43,7 +43,7 @@ static void setup(void) {
 }
 
 int main(int argc, char *argv[]) {
-	char c;
+	int c;
 
 	nr_nodes = numa_max_node() + 1;
 	nodemask = (1UL << nr_nodes) - 1; /* all nodes in default */

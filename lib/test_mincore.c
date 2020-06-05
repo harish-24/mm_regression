@@ -50,7 +50,7 @@ int main(int argc, char *argv[]) {
 	int nr = 2;
 	int ret;
 	int fd = -1;
-	char c;
+	int c;
 	char *p;
 	unsigned long memsize = 2*1024*1024;
 	int mapflag = MAP_ANONYMOUS;

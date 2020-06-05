@@ -31,22 +31,13 @@ EXPECTED_RETURN_CODE="START MIGRATION_PASSED $HUGEPAGE_CHECKCODE EXIT"
 _prepare() {
 	prepare_mmgeneric || return 1
 
-	# ###: This patchset was not accepted :(
-	# if ! grep -q thp_migrate_failure /proc/vmstat ; then
-	# 	echo "no thp_migrate_failure entry in /proc/vmstat"
-	# 	return 1
-	# fi
-
 	set_thp_defrag_never
 	khpd_off
 
 	mkfifo $TMPD/.tmp_pipe
 	chmod a+x $TMPD/.tmp_pipe
-
-	# Background memeater try to allocate all free pages in node 1,
-	# then create fragmented status to drive memory compaction.
-	echo "lib/test_alloc_generic -B thp -N $[MEMFREE/4/512*6/10] -L 'mmap_numa:preferred_cpu_node=1:preferred_mem_node=1 access split_thp madvise:advice=dontneed:wait_after:offset=0:length=31:step=32'"
-	lib/test_alloc_generic -B thp -N $[MEMFREE/4/512*6/10] -p $TMPD/.tmp_pipe -L "mmap_numa:preferred_cpu_node=1:preferred_mem_node=1 access split_thp madvise:advice=dontneed:wait_after:offset=0:length=31:step=32" &
+	echo "lib/test_alloc_generic -B thp -N $[MEMFREE/4/512*6/10] -L 'mmap_numa:preferred_cpu_node=8:preferred_mem_node=8 access split_thp madvise:advice=dontneed:wait_after:offset=0:length=31:step=32'"
+	lib/test_alloc_generic -B thp -N $[MEMFREE/4/512*6/10] -p $TMPD/.tmp_pipe -L "mmap_numa:preferred_cpu_node=8:preferred_mem_node=8 access split_thp madvise:advice=dontneed:wait_after:offset=0:length=31:step=32" &
 	local backpid=$!
 	if ! check_process_status $backpid ; then
 		set_return_code "BACKGROUND_FAILED"
@@ -60,9 +51,6 @@ _prepare() {
 }
 
 _check() {
-	# local thpmig_failure_before=$(grep thp_migrate_failure $TMPD/vmstat.2 | awk -e '{print $2}')
-	# local thpmig_failure_after=$(grep thp_migrate_failure $TMPD/vmstat.3 | awk -e '{print $2}')
-
 	local pagetype_before=$TMPD/pagetypes.2
 	local pagetype_after=$TMPD/pagetypes.3
 	if [ "$FORK" ] ; then
@@ -78,14 +66,6 @@ _check() {
 
 	grep '^+' $TMPD/pagetypes.huge.diff.A | grep -v '^+++' > $TMPD/split_retry.A
 	grep '^+' $TMPD/pagetypes.huge.diff.B | grep -v '^+++' > $TMPD/split_retry.B
-
-	# count_testcount
-	# if [ "$thpmig_failure_before" == "$thpmig_failure_after" ] ; then
-	# 	count_failure "thp migration didn't fail, so no retry happen"
-	# else
-	# 	count_success "thp migration failed/retried after split"
-	# fi
-
 	count_testcount
 	if [ -s "$TMPD/split_retry.A" ] ; then
 		count_success "retry normal page migration after thp split"

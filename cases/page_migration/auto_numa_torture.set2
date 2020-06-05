@@ -19,8 +19,8 @@ _control() {
     for i in $(seq 10) ; do
 		echo "current CPU: $(ps -o psr= $pid)"
         echo "expecting numa balance to optimize the situation ..."
-        echo lib/numa_move_pages $size $pid 1 $pct
-        lib/numa_move_pages $size $pid 1 $pct
+        echo lib/numa_move_pages $size $pid 8 $pct
+        lib/numa_move_pages $size $pid 8 $pct
         taskset -p 0x4 $pid
         grep ^70000000 /proc/$pid/numa_maps
         grep numa /proc/$pid/sched

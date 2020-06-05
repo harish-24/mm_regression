@@ -35,9 +35,8 @@ check_migration_pagemap() {
 check_migration_hugeness() {
 	local before=$1
 	local after=$2
-
-	grep -e H_ -e _T $before | cut -f1,2 > $TMPD/.pagetypes.huge.1
-	grep -e H_ -e _T $after  | cut -f1,2 > $TMPD/.pagetypes.huge.2
+	grep -e H_ -e _t $before | cut -f1,2 > $TMPD/.pagetypes.huge.1
+	grep -e H_ -e _t $after  | cut -f1,2 > $TMPD/.pagetypes.huge.2
 	diff -u1000000 $TMPD/.pagetypes.huge.1 $TMPD/.pagetypes.huge.2 | grep -v -e '---' -e '+++' > $TMPD/.pagetypes.huge.diff
 	local before=$(grep "^-" $TMPD/.pagetypes.huge.diff | wc -l)
 	local after=$(grep "^+" $TMPD/.pagetypes.huge.diff | wc -l)
@@ -184,12 +183,11 @@ control_hugepage_migration() {
 				;;
 			"after_access")
 				get_mm_stats 1 $pid
-
 				# TODO: better condition check
 				if [ "$RACE_SRC" == "race_with_gup" ] && [ "$MIGRATE_SRC" == "migratepages" ] ; then
 					( for i in $(seq 10) ; do
-						  migratepages $pid 0 1 > /dev/null 2>&1
-						  migratepages $pid 1 0 > /dev/null 2>&1
+						  migratepages $pid 0 8 > /dev/null 2>&1
+						  migratepages $pid 8 0 > /dev/null 2>&1
 					  done ) &
 				fi
 
@@ -199,7 +197,7 @@ control_hugepage_migration() {
 					$PAGETYPES -p $pid -r -b anon | grep total
 					ps ax | grep thp
 					grep -A15 ^70000 /proc/$pid/smaps | grep -i anon
-					( for i in $(seq 10) ; do migratepages $pid 0 1 ; migratepages $pid 1 0 ; done ) &
+					( for i in $(seq 10) ; do migratepages $pid 0 8 ; migratepages $pid 8 0 ; done ) &
 				fi
 
 				kill -SIGUSR1 $pid
@@ -213,7 +211,7 @@ control_hugepage_migration() {
 
 				# TODO: flag check enough?
 				if [[ "$OPERATION_TYPE" =~ ^mlock ]] ; then
-					get_pagetypes $pid pagetypes.2.mlocked -Nrla 0x700000000+0x10000000 -b mlocked
+					get_pagetypes $pid pagetypes.2.mlocked -b mlocked
 					if [ -s "$TMPD/pagetypes.2.mlocked" ] ; then
 						set_return_code MLOCKED
 					else

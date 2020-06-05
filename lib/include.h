@@ -361,7 +361,7 @@ static void prepare_memory(struct mem_chunk *mc, void *baseaddr,
 		mc->p = checked_mmap(baseaddr, PS, protflag,
 				     MAP_PRIVATE|MAP_ANONYMOUS, dev_mem_fd, 0);
 		checked_mmap(baseaddr + PS, PS, PROT_READ,
-				     MAP_SHARED, dev_mem_fd, 0xf0000);
+				     MAP_SHARED, dev_mem_fd, 0);
 		checked_mmap(baseaddr + 2 * PS, PS, protflag,
 				     MAP_PRIVATE|MAP_ANONYMOUS, dev_mem_fd, 0);
 		break;
@@ -516,11 +516,12 @@ static int set_mempolicy_node(int mode, int nid) {
 }
 
 static int numa_sched_setaffinity_node(int nid) {
-	struct bitmask *new_cpus = numa_bitmask_alloc(32);
+	struct bitmask *new_cpus = numa_bitmask_alloc(numa_max_node() + 1);
 
 	if (numa_node_to_cpus(nid, new_cpus))
 		err("numa_node_to_cpus");
 
+	numa_bitmask_setbit(new_cpus, 0);
 	if (numa_sched_setaffinity(0, new_cpus))
 		err("numa_sched_setaffinity");
 
@@ -575,7 +576,7 @@ static void do_mbind(struct op_control *opc) {
 	}
 
 	mbind_arg.new_nodes = numa_bitmask_alloc(nr_nodes);
-	numa_bitmask_setbit(mbind_arg.new_nodes, 1);
+	numa_bitmask_setbit(mbind_arg.new_nodes, 8);
 
 	do_work_memory(__mbind_chunk, (void *)&mbind_arg);
 }
@@ -614,7 +615,6 @@ static void do_mbind_fuzz(struct op_control *opc) {
 	mbind_arg.new_nodes = numa_bitmask_alloc(nr_nodes);
 
 	/* TODO: more race consideration, chunk, busyloop case? */
-	pprintf("doing mbind_fuzz\n");
 	while (flag)
 		do_work_memory(__mbind_fuzz_chunk, (void *)&mbind_arg);
 }
@@ -638,7 +638,7 @@ static int __move_pages_chunk(struct mem_chunk *mc, void *args) {
 }
 
 static void do_move_pages(struct op_control *opc) {
-	int node = 1;
+	int node = 8;
 
 	do_work_memory(__move_pages_chunk, &node);
 }
@@ -761,7 +761,7 @@ static void do_hotremove(struct op_control *opc) {
 }
 
 static void do_auto_numa(struct op_control *opc) {
-	numa_sched_setaffinity_node(1);
+	numa_sched_setaffinity_node(8);
 	pprintf_wait_func(opc_defined(opc, "busyloop") ? do_access : NULL, opc,
 			  "waiting for auto_numa\n");
 }
@@ -859,7 +859,7 @@ static void do_mlock(struct op_control *opc) {
 }
 
 /* only true for x86_64 */
-#define __NR_mlock2 325
+#define __NR_mlock2 378
 
 static int __mlock2_chunk(struct mem_chunk *mc, void *args) {
 	char *p = mc->p;
@@ -894,8 +894,9 @@ static int __mprotect_chunk(struct mem_chunk *mc, void *args) {
 		prot = arg->permission;
 
 	if (arg->hp_partial) {
-		for (i = 0; i < (size - 1) / HPS + 1; i++)
+		for (i = 0; i < (size - 1) / HPS + 1; i++){
 			mprotect(p + i * HPS, PS, prot);
+		}
 	} else
 		mprotect(p, size, prot);
 }
@@ -905,9 +906,10 @@ static void do_mprotect(struct op_control *opc) {
 	struct mprotect_arg mprotect_arg = {
 		.permission = -1,
 	};
-
-	if (tmp = opc_get_value(opc, "hp_partial"))
-		mprotect_arg.hp_partial = strtoul(tmp, NULL, 0);
+	tmp = opc_get_value(opc, "hp_partial");
+	if (opc_defined(opc, "hp_partial")){
+		mprotect_arg.hp_partial = 1;
+	}
 	if (tmp = opc_get_value(opc, "permission"))
 		mprotect_arg.permission = strtoul(tmp, NULL, 0);
 
@@ -1045,7 +1047,7 @@ static int iterate_mbind_pingpong(void *arg) {
 	struct mbind_arg *mbind_arg = (struct mbind_arg *)arg;
 
 	numa_bitmask_clearall(mbind_arg->new_nodes);
-	numa_bitmask_setbit(mbind_arg->new_nodes, 1);
+	numa_bitmask_setbit(mbind_arg->new_nodes, 8);
 	do_work_memory(__mbind_chunk, mbind_arg);
 
 	numa_bitmask_clearall(mbind_arg->new_nodes);
@@ -1069,7 +1071,7 @@ static void do_move_pages_pingpong(struct op_control *opc) {
 	while (flag) {
 		int node;
 
-		node = 1;
+		node = 8;
 		do_work_memory(__move_pages_chunk, &node);
 
 		node = 0;
@@ -1134,7 +1136,9 @@ static int __do_madvise_chunk(struct mem_chunk *mc, void *args) {
 		ret = madvise(p, madv_arg->size,
 			      madv_arg->advice);
 		if (ret)
+		{
 			return ret;
+		}
 	} else if (madv_arg->hp_partial) {
 		for (i = 0; i < (size - 1) / HPS + 1; i++) {
 			ret = madvise(p + i * HPS, madv_arg->hp_partial * PS,
@@ -1233,7 +1237,7 @@ static void do_madv_soft(struct op_control *opc) {
 	/* int loop = 10; */
 	/* int do_unpoison = 1; */
 	opc_set_value(opc, "advice", "soft_offline");
-	opc_set_value(opc, "size", "4096");
+	opc_set_value(opc, "size", "65536");
 	do_madvise(opc);
 }
 
